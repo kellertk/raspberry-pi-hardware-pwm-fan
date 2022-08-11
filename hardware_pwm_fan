@@ -1,0 +1,110 @@
+#!/usr/bin/python3
+
+import getopt
+import sys
+import time
+from subprocess import check_output
+from rpi_hardware_pwm import HardwarePWM
+
+# Defaults
+HARD_PWM_CHAN = 0
+SLEEP_TIME = 5
+OFF_TEMP = 35
+MAX_TEMP = 80
+FAN_LOW_PCT = 20
+VERBOSE = False
+
+
+def usage():
+    """Print usage information"""
+    print(f'Usage: {sys.argv[0]} [-hv] --hard_pwm_channel=[0 | 1] [-off-temp=<temp>] ')
+    print('  [-high-temp=<temp>] [-fan-low-pct=<pct>] [-sleep=<sec>]')
+    print('')
+    print('  -h, --help                Print this help')
+    print('  -v, --verbose             Verbose output')
+    print('  --off-temp=<temp>         Temperature at which the fan is turned off')
+    print('  --high-temp=<temp>        Temperature at which the fan is at full speed')
+    print('  --fan-low-pct=<pct>       How slow the fan is at the lowest speed')
+    print('  --hard-pwm-channel=<chan> GPIO channel to use for the hardware PWM fan')
+    print('  --sleep=<sec>             Time to sleep between temperature checks')
+    print('')
+    print('Note: You must specify a hardware PWM channel for this to work, and')
+    print('  have loaded the pwm or pwm-2chan dtoverlay for the Raspberry Pi.')
+    print('  See /boot/overlays/README and /boot/config.txt for more info.')
+    print('')
+
+def gettemp():
+    """Get the current temperature"""
+    return float(check_output(['vcgencmd', 'measure_temp']).decode().replace('temp=','')
+             .replace('\'C',''))
+
+
+def fan_speed(temp: float):
+    """Calculate the fan 'curve' (not really a curve)"""
+    max_speed = 100
+    min_speed = max_speed * FAN_LOW_PCT / 100
+    if temp < OFF_TEMP:
+        return 0
+    elif temp > MAX_TEMP:
+        return max_speed
+    else:
+        # linear interpolation
+        return int(
+            min_speed + ((temp - OFF_TEMP) / (MAX_TEMP - OFF_TEMP)) * (max_speed - min_speed))
+
+def main():
+    """Main function"""
+    global HARD_PWM_CHAN, SLEEP_TIME, OFF_TEMP, MAX_TEMP, FAN_LOW_PCT, VERBOSE
+    try:
+        opts, _ = getopt.getopt(sys.argv[1:], 'hv', ['off-temp=', 'high-temp=', 'fan-low-pct=',
+                                                        'hard-pwm-channel=', 'sleep=', 'verbose'])
+    except getopt.GetoptError as err:
+        print(err)
+        print('')
+        usage()
+        sys.exit(2)
+    for opt, arg in opts:
+        if opt in ('-h', '--help'):
+            usage()
+            sys.exit()
+        elif opt in ('-v', '--verbose'):
+            VERBOSE = True
+        elif opt in ('--off-temp'):
+            OFF_TEMP = int(arg)
+        elif opt in ('--high-temp'):
+            MAX_TEMP = int(arg)
+        elif opt in ('--fan-low-pct'):
+            FAN_LOW_PCT = int(arg)
+        elif opt in ('--hard-pwm-channel'):
+            HARD_PWM_CHAN = int(arg)
+        elif opt in ('--sleep'):
+            SLEEP_TIME = int(arg)
+
+    print('')
+    print(f'HARD_PWM_CHAN: {HARD_PWM_CHAN}')
+    print(f'SLEEP_TIME: {SLEEP_TIME}')
+    print(f'OFF_TEMP: {OFF_TEMP}')
+    print(f'MAX_TEMP: {MAX_TEMP}')
+    print(f'FAN_LOW_PCT: {FAN_LOW_PCT}')
+    print(f'VERBOSE: {VERBOSE}')
+    print('')
+
+    pwm = HardwarePWM(HARD_PWM_CHAN, hz=10000)
+    pwm.start(100)
+
+    try:
+        while True:
+            temp = gettemp()
+            speed = fan_speed(temp)
+            pwm.change_duty_cycle(speed)
+            if VERBOSE:
+                print(f'Temp: {temp:.1f}C, Speed: {speed}%')
+            time.sleep(SLEEP_TIME)
+    except KeyboardInterrupt:
+        pwm.stop()
+        print('')
+        print('Exiting on KeyboardInterrupt')
+        sys.exit()
+
+if __name__ == '__main__':
+    main()
