@@ -89,7 +89,7 @@ def main():
     print(f'VERBOSE: {VERBOSE}')
     print('')
 
-    pwm = HardwarePWM(HARD_PWM_CHAN, hz=10000)
+    pwm = HardwarePWM(HARD_PWM_CHAN, hz=25000)
     pwm.start(100)
 
     try:
