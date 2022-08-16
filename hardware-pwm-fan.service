@@ -1,17 +1,24 @@
 [Unit]
 Description=raspberry pi hardware fan control
 After=basic.target
-Wants=basic.target
 
 [Service]
 Restart=on-failure
 RestartSec=5s
+Environment=PYTHONUNBUFFERED=true
 ExecStart=/home/pi/scripts/hardware_pwm_fan -v \
             --sleep=5 \
             --hard-pwm-channel=0 \
             --fan-low-pct=30 \
             --high-temp=75 \
-            --off-temp=40
+            --off-temp=40 \
+            --notify
+StandardError=journal
+StandardOutput=journal
+StandardInput=null
+NotifyAccess=main
+Type=notify
+WatchdogSec=25
 
 [Install]
 WantedBy=multi-user.target
