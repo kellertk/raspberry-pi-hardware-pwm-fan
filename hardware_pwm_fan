@@ -3,6 +3,7 @@
 import getopt
 import sys
 import time
+import sdnotify
 from subprocess import check_output
 from rpi_hardware_pwm import HardwarePWM
 
@@ -13,11 +14,12 @@ OFF_TEMP = 35
 MAX_TEMP = 80
 FAN_LOW_PCT = 20
 VERBOSE = False
+NOTIFY = False
 
 
 def usage():
     """Print usage information"""
-    print(f'Usage: {sys.argv[0]} [-hv] --hard_pwm_channel=[0 | 1] [-off-temp=<temp>] ')
+    print(f'Usage: {sys.argv[0]} [-hvn] --hard_pwm_channel=[0 | 1] [-off-temp=<temp>] ')
     print('  [-high-temp=<temp>] [-fan-low-pct=<pct>] [-sleep=<sec>]')
     print('')
     print('  -h, --help                Print this help')
@@ -27,6 +29,7 @@ def usage():
     print('  --fan-low-pct=<pct>       How slow the fan is at the lowest speed')
     print('  --hard-pwm-channel=<chan> GPIO channel to use for the hardware PWM fan')
     print('  --sleep=<sec>             Time to sleep between temperature checks')
+    print('  -n, --notify              Enables systemd notify support')
     print('')
     print('Note: You must specify a hardware PWM channel for this to work, and')
     print('  have loaded the pwm or pwm-2chan dtoverlay for the Raspberry Pi.')
@@ -35,8 +38,7 @@ def usage():
 
 def gettemp():
     """Get the current temperature"""
-    return float(check_output(['vcgencmd', 'measure_temp']).decode().replace('temp=','')
-             .replace('\'C',''))
+    return float(check_output(['vcgencmd', 'measure_temp']).decode().replace('temp=','').replace('\'C',''))
 
 
 def fan_speed(temp: float):
@@ -54,10 +56,10 @@ def fan_speed(temp: float):
 
 def main():
     """Main function"""
-    global HARD_PWM_CHAN, SLEEP_TIME, OFF_TEMP, MAX_TEMP, FAN_LOW_PCT, VERBOSE
+    global HARD_PWM_CHAN, SLEEP_TIME, OFF_TEMP, MAX_TEMP, FAN_LOW_PCT, VERBOSE, NOTIFY
     try:
         opts, _ = getopt.getopt(sys.argv[1:], 'hv', ['off-temp=', 'high-temp=', 'fan-low-pct=',
-                                                        'hard-pwm-channel=', 'sleep=', 'verbose'])
+                                                     'hard-pwm-channel=', 'sleep=', 'verbose', 'notify'])
     except getopt.GetoptError as err:
         print(err)
         print('')
@@ -79,6 +81,8 @@ def main():
             HARD_PWM_CHAN = int(arg)
         elif opt in ('--sleep'):
             SLEEP_TIME = int(arg)
+        elif opt in ('-n', '--notify'):
+            NOTIFY = True
 
     print('')
     print(f'HARD_PWM_CHAN: {HARD_PWM_CHAN}')
@@ -87,10 +91,15 @@ def main():
     print(f'MAX_TEMP: {MAX_TEMP}')
     print(f'FAN_LOW_PCT: {FAN_LOW_PCT}')
     print(f'VERBOSE: {VERBOSE}')
+    print(f'NOTIFY: {NOTIFY}')
     print('')
 
     pwm = HardwarePWM(HARD_PWM_CHAN, hz=25000)
     pwm.start(100)
+
+    if NOTIFY:
+        systemd = sdnotify.SystemdNotifier()
+        systemd.notify('READY=1')
 
     try:
         while True:
@@ -99,6 +108,8 @@ def main():
             pwm.change_duty_cycle(speed)
             if VERBOSE:
                 print(f'Temp: {temp:.1f}C, Speed: {speed}%')
+            if NOTIFY:
+                systemd.notify('WATCHDOG=1')
             time.sleep(SLEEP_TIME)
     except KeyboardInterrupt:
         pwm.stop()
