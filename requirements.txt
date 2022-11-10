@@ -1,1 +1,2 @@
 rpi-hardware-pwm>=0.1.4
+sdnotify>=0.3.2
