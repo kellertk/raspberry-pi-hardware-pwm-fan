@@ -32,3 +32,6 @@ share functions with PCM. GPIO 12 and 13 are better choices for PWM. Use
 `dtoverlay=pwm,pin=12,func=4` or `dtoverlay=pwm,pin=13,func=4` if you want to
 use those pins; otherwise you can just use `dtoverlay=pwm`. The `-2chan` variant
 is if you want to configure both PWM channels for some reason.
+
+This confuses me every time I try and set this. https://github.com/raspberrypi/firmware/blob/3a232374735c2bc5b7188ba2dfc0cbba8fa30d97/boot/overlays/README#L3250
+has all of the info you need.
