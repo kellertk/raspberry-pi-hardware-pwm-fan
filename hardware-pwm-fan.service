@@ -6,13 +6,14 @@ After=basic.target
 Restart=on-failure
 RestartSec=5s
 Environment=PYTHONUNBUFFERED=true
-ExecStart=/home/pi/scripts/hardware_pwm_fan -v \
+ExecStart=/home/pi/scripts/hardware_pwm_fan \
             --sleep=5 \
             --hard-pwm-channel=0 \
             --fan-low-pct=30 \
             --high-temp=75 \
             --off-temp=40 \
             --notify
+Nice=5
 StandardError=journal
 StandardOutput=journal
 StandardInput=null
