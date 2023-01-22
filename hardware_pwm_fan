@@ -38,7 +38,7 @@ def usage():
 
 def gettemp():
     """Get the current temperature"""
-    return float(check_output(['vcgencmd', 'measure_temp']).decode().replace('temp=','').replace('\'C',''))
+    return float(check_output(['cat', '/sys/class/thermal/thermal_zone0/temp']).decode() / 1000.0
 
 
 def fan_speed(temp: float):
