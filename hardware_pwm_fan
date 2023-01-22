@@ -38,7 +38,7 @@ def usage():
 
 def gettemp():
     """Get the current temperature"""
-    return float(check_output(['cat', '/sys/class/thermal/thermal_zone0/temp']).decode() / 1000.0
+    return float(check_output(['cat', '/sys/class/thermal/thermal_zone0/temp']).decode()) / 1000.0
 
 
 def fan_speed(temp: float):
